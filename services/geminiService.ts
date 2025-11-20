@@ -10,14 +10,16 @@ export const fetchHistoryData = async (): Promise<Figure[]> => {
   const ai = new GoogleGenAI({ apiKey });
 
   const prompt = `
-    Generate a curated list of 10 significant historical figures in the field of computing.
+    Generate a curated list of 8 significant historical figures in the field of computing.
     
     CRITERIA:
     1. Focus STRICTLY on women, racial minorities, and contributors from outside the United States.
     2. NARRATIVE FOCUS: Explain how their specific contribution laid the groundwork for Modern Artificial Intelligence (AI), Algorithms, Big Data, or Neural Networks.
-    3. Sort chronologically from earliest to most recent.
-    4. Include a mix of known and obscure figures.
-    5. Include a famous or representative quote.
+    3. HISTORICAL CONTEXT: Group these figures by their "Era" (e.g., "1800s: The Theoretical Foundation", "1940s: The Vacuum Tube Era", "1960s: The Software Revolution").
+    4. TECHNICAL DEPTH: Include a specific mathematical formula and artifact.
+    5. MEDIA: Include specific search keywords to find a video of them giving a speech or interview.
+    6. ACCURACY & CITATION: Provide 2-3 specific, reputable sources (Books, Museums, Academic Journals) that verify this information.
+    7. Sort chronologically.
 
     Output must be a JSON array.
   `;
@@ -27,7 +29,7 @@ export const fetchHistoryData = async (): Promise<Figure[]> => {
       model: "gemini-2.5-flash",
       contents: prompt,
       config: {
-        systemInstruction: "You are a historical documentarian specializing in the genealogy of technology. You focus on how underrepresented innovators built the foundations of AI.",
+        systemInstruction: "You are a technical historian. You focus on the ancestral lineage of AI. For each figure, provide the specific 'Era' they belong to. IMPORTANT: Provide 'speechKeywords' that would yield the best YouTube result for a video of them speaking. IMPORTANT: Provide a list of real, verifiable 'sources' (e.g., 'IEEE Annals of the History of Computing', 'Computer History Museum: [Page Title]', 'Book Title by Author').",
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -39,15 +41,32 @@ export const fetchHistoryData = async (): Promise<Figure[]> => {
                 properties: {
                   id: { type: Type.STRING },
                   name: { type: Type.STRING },
-                  year: { type: Type.INTEGER, description: "The primary year of their major contribution" },
+                  year: { type: Type.INTEGER },
                   country: { type: Type.STRING },
-                  contribution: { type: Type.STRING, description: "Short summary title of contribution" },
-                  detailedDescription: { type: Type.STRING, description: "2-3 sentences explaining their life and work" },
-                  aiConnection: { type: Type.STRING, description: "Explicit explanation of how this work enabled modern AI" },
+                  contribution: { type: Type.STRING },
+                  detailedDescription: { type: Type.STRING },
+                  aiConnection: { type: Type.STRING },
                   quote: { type: Type.STRING },
                   tags: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  formula: { type: Type.STRING },
+                  artifactName: { type: Type.STRING },
+                  speechKeywords: { type: Type.STRING, description: "Keywords to find a video of this person speaking." },
+                  sources: { 
+                    type: Type.ARRAY, 
+                    items: { type: Type.STRING },
+                    description: "List of 2-3 reputable sources verifying this entry (e.g. Books, IEEE Journals, Museum records)."
+                  },
+                  era: {
+                    type: Type.OBJECT,
+                    properties: {
+                      title: { type: Type.STRING, description: "Title of the decade/era, e.g., 'The Transistor Revolution'" },
+                      description: { type: Type.STRING, description: "2-3 sentences on the state of the world and technology during this time." },
+                      advancement: { type: Type.STRING, description: "What major capability did humanity gain in this era? (e.g., 'From calculation to logic', 'Real-time processing')" }
+                    },
+                    required: ["title", "description", "advancement"]
+                  }
                 },
-                required: ["id", "name", "year", "country", "contribution", "detailedDescription", "aiConnection", "quote", "tags"],
+                required: ["id", "name", "year", "country", "contribution", "detailedDescription", "aiConnection", "quote", "tags", "formula", "artifactName", "speechKeywords", "sources", "era"],
               },
             },
           },
@@ -61,7 +80,10 @@ export const fetchHistoryData = async (): Promise<Figure[]> => {
     }
 
     const parsed = JSON.parse(jsonText);
-    return parsed.figures;
+    const figures = parsed.figures || [];
+    
+    // Explicitly sort by year to guarantee chronological order
+    return figures.sort((a: Figure, b: Figure) => a.year - b.year);
   } catch (error) {
     console.error("Error fetching history data:", error);
     throw error;
